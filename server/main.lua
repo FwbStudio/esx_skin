@@ -17,6 +17,28 @@ local saveLimiter = xLib.rateLimiter({
 })
 local readLimiter = xLib.rateLimiter({ capacity = 2, refill = 1, interval = 1000 })
 
+-- lets FWB scripts know this version tells them about bought clothes and outfits
+exports('fwbClothing', function()
+    return 1
+end)
+
+local skinComponents = { mask = 1, arms = 3, pants = 4, bags = 5, shoes = 6, chain = 7, tshirt = 8, bproof = 9, decals = 10, torso = 11 }
+local skinProps = { helmet = 0, glasses = 1, ears = 2, watches = 6, bracelets = 7 }
+
+-- an esx skin as components and props
+local function clothesOf(skin)
+    local clothes = { components = {}, props = {} }
+    for name, id in pairs(skinComponents) do
+        local drawable = name == 'arms' and skin.arms or skin[name .. '_1']
+        local texture = name == 'arms' and skin.arms_2 or skin[name .. '_2']
+        if drawable then clothes.components[#clothes.components + 1] = { component_id = id, drawable = drawable, texture = texture or 0 } end
+    end
+    for name, id in pairs(skinProps) do
+        if skin[name .. '_1'] then clothes.props[#clothes.props + 1] = { prop_id = id, drawable = skin[name .. '_1'], texture = skin[name .. '_2'] or 0 } end
+    end
+    return clothes
+end
+
 local function isCurrentPlayer(playerId, player)
     return player and player.source == playerId and player.isCurrent and player.isCurrent() == true
 end
@@ -450,6 +472,15 @@ local function saveScopedSkin(playerId, skin, callback, scope)
         return saveSkin(playerId, appearance, callback)
     end
 
+    -- the clothing shop saves with this scope once it took the money
+    if scope == 'clothes' then
+        local done = callback
+        callback = function(success, ...)
+            if success then TriggerEvent('fwb:clothing:bought', playerId, clothesOf(skin)) end
+            reply(done, success, ...)
+        end
+    end
+
     for name, value in pairs(stored) do
         if not fields[name] and skin[name] ~= value then
             reply(callback, false, 'appearance_scope_mismatch:' .. name)
@@ -513,6 +544,7 @@ exports('SaveOutfit', function(playerId, clothes, callback)
     end
 
     return saveSkin(playerId, skin, function(saved)
+        if saved then TriggerEvent('fwb:clothing:outfit', playerId, clothesOf(skin)) end
         if callback then
             callback(saved, saved and skin or nil)
         end
@@ -520,6 +552,13 @@ exports('SaveOutfit', function(playerId, clothes, callback)
 end)
 
 RegisterNetEvent('esx_skin:setWeight', function() end)
+
+-- a job uniform or accessory put on with skinchanger
+RegisterNetEvent('esx_skin:wearOutfit', function(clothes)
+    if type(clothes) == 'table' then
+        TriggerEvent('fwb:clothing:outfit', source, clothesOf(clothes))
+    end
+end)
 
 getPlayerSkin = function(source, cb)
     local player = ESX.GetPlayerFromId(source)

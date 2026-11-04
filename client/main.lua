@@ -4,6 +4,10 @@
 Skin = {}
 Skin._index = Skin
 
+AddEventHandler('skinchanger:loadClothes', function(_, clothes)
+    TriggerServerEvent('esx_skin:wearOutfit', clothes)
+end)
+
 Skin.firstSpawn = true
 Skin.zoomOffset = 0.0
 Skin.camOffset = 0.0

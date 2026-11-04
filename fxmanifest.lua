@@ -8,6 +8,7 @@ author 'ESX-Framework'
 description "Allows players to customise their character's appearance"
 version '1.16.3'
 lua54 'yes'
+fwb_clothing '1'
 
 shared_scripts {
     '@esx_lib/imports.lua',
